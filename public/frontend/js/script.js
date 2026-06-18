@@ -226,6 +226,38 @@ function setupEventListeners() {
             closeModal();
         });
     }
+
+    // Lógica para pestañas en móviles
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const controlPanel = document.querySelector('.control-panel');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            const tab = button.getAttribute('data-tab');
+            if (tab === 'config') {
+                controlPanel.classList.add('show-config');
+                controlPanel.classList.remove('show-sim');
+            } else {
+                controlPanel.classList.add('show-sim');
+                controlPanel.classList.remove('show-config');
+            }
+            // Forzar redibujado de Cytoscape por si cambian las dimensiones del contenedor
+            if (cy) {
+                cy.resize();
+            }
+        });
+    });
+
+    // Evento de cambio de orientación o redimensionamiento de ventana
+    window.addEventListener('resize', () => {
+        if (cy) {
+            cy.resize();
+            cy.fit();
+        }
+    });
 }
 
 function renderTransitionsList() {
