@@ -227,9 +227,33 @@ function setupEventListeners() {
         });
     }
 
-    // Lógica para pestañas en móviles
+    // Lógica para pestañas en móviles y control de altura (Bottom Sheet)
     const tabButtons = document.querySelectorAll('.tab-btn');
     const controlPanel = document.querySelector('.control-panel');
+    const handle = document.querySelector('.bottom-sheet-handle');
+
+    if (handle && controlPanel) {
+        handle.addEventListener('click', () => {
+            if (controlPanel.classList.contains('state-half')) {
+                controlPanel.classList.remove('state-half');
+                controlPanel.classList.add('state-expanded');
+            } else if (controlPanel.classList.contains('state-expanded')) {
+                controlPanel.classList.remove('state-expanded');
+                controlPanel.classList.add('state-collapsed');
+            } else {
+                controlPanel.classList.remove('state-collapsed');
+                controlPanel.classList.add('state-half');
+            }
+            
+            // Reajustar Cytoscape tras finalizar la transición CSS de altura (300ms)
+            setTimeout(() => {
+                if (cy) {
+                    cy.resize();
+                    cy.fit();
+                }
+            }, 320);
+        });
+    }
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -244,10 +268,20 @@ function setupEventListeners() {
                 controlPanel.classList.add('show-sim');
                 controlPanel.classList.remove('show-config');
             }
-            // Forzar redibujado de Cytoscape por si cambian las dimensiones del contenedor
-            if (cy) {
-                cy.resize();
+
+            // Auto-expandir si el panel estaba colapsado al presionar una pestaña
+            if (controlPanel && controlPanel.classList.contains('state-collapsed')) {
+                controlPanel.classList.remove('state-collapsed');
+                controlPanel.classList.add('state-half');
             }
+
+            // Forzar redibujado de Cytoscape
+            setTimeout(() => {
+                if (cy) {
+                    cy.resize();
+                    cy.fit();
+                }
+            }, 320);
         });
     });
 
