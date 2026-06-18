@@ -227,32 +227,113 @@ function setupEventListeners() {
         });
     }
 
-    // Lógica para pestañas en móviles y control de altura (Bottom Sheet)
+    // Lógica para pestañas en móviles y control de altura (Bottom Sheet con arrastre libre)
     const tabButtons = document.querySelectorAll('.tab-btn');
     const controlPanel = document.querySelector('.control-panel');
     const handle = document.querySelector('.bottom-sheet-handle');
 
+    // --- Sistema de arrastre libre (drag) para el Bottom Sheet ---
     if (handle && controlPanel) {
-        handle.addEventListener('click', () => {
-            if (controlPanel.classList.contains('state-half')) {
-                controlPanel.classList.remove('state-half');
-                controlPanel.classList.add('state-expanded');
-            } else if (controlPanel.classList.contains('state-expanded')) {
-                controlPanel.classList.remove('state-expanded');
-                controlPanel.classList.add('state-collapsed');
+        const HANDLE_HEIGHT = 44;       // altura mínima visible (solo el tirador)
+        const MAX_RATIO = 0.82;         // máximo 82% de la pantalla
+        const SNAP_HALF = 0.45;         // zona de snap al 45%
+        const SNAP_EXPANDED = 0.70;     // zona de snap al expandido
+
+        let isDragging = false;
+        let startY = 0;
+        let startHeight = 0;
+
+        function getMaxHeight() {
+            return Math.floor(window.innerHeight * MAX_RATIO);
+        }
+
+        function applyHeight(newHeight, animate) {
+            const clamped = Math.max(HANDLE_HEIGHT, Math.min(newHeight, getMaxHeight()));
+            if (animate) {
+                controlPanel.style.transition = 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
             } else {
-                controlPanel.classList.remove('state-collapsed');
-                controlPanel.classList.add('state-half');
+                controlPanel.style.transition = 'none';
             }
-            
-            // Reajustar Cytoscape tras finalizar la transición CSS de altura (300ms)
-            setTimeout(() => {
-                if (cy) {
-                    cy.resize();
-                    cy.fit();
-                }
-            }, 320);
+            controlPanel.style.height = clamped + 'px';
+        }
+
+        function snapToNearest(currentHeight) {
+            const vh = window.innerHeight;
+            const half = Math.floor(vh * SNAP_HALF);
+            const expanded = Math.floor(vh * SNAP_EXPANDED);
+            const collapsed = HANDLE_HEIGHT;
+
+            const distCollapsed = Math.abs(currentHeight - collapsed);
+            const distHalf = Math.abs(currentHeight - half);
+            const distExpanded = Math.abs(currentHeight - expanded);
+
+            let target = half;
+            if (distCollapsed < distHalf && distCollapsed < distExpanded) target = collapsed;
+            else if (distExpanded < distHalf) target = expanded;
+
+            applyHeight(target, true);
+            setTimeout(() => { if (cy) { cy.resize(); cy.fit(); } }, 320);
+        }
+
+        function onDragStart(clientY) {
+            isDragging = true;
+            startY = clientY;
+            startHeight = controlPanel.offsetHeight;
+            controlPanel.style.transition = 'none';
+            document.body.style.userSelect = 'none';
+        }
+
+        function onDragMove(clientY) {
+            if (!isDragging) return;
+            const delta = startY - clientY;   // arrastrar hacia arriba = delta positivo = panel crece
+            const newHeight = startHeight + delta;
+            applyHeight(newHeight, false);
+        }
+
+        function onDragEnd(clientY) {
+            if (!isDragging) return;
+            isDragging = false;
+            document.body.style.userSelect = '';
+            const delta = startY - clientY;
+            const finalHeight = startHeight + delta;
+            snapToNearest(finalHeight);
+        }
+
+        // Touch events
+        handle.addEventListener('touchstart', (e) => {
+            onDragStart(e.touches[0].clientY);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                e.preventDefault();
+                onDragMove(e.touches[0].clientY);
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            if (isDragging) {
+                onDragEnd(e.changedTouches[0].clientY);
+            }
         });
+
+        // Mouse events (para pruebas en desktop)
+        handle.addEventListener('mousedown', (e) => {
+            onDragStart(e.clientY);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) onDragMove(e.clientY);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (isDragging) onDragEnd(e.clientY);
+        });
+
+        // Altura inicial al cargar en móvil
+        if (window.innerWidth <= 768) {
+            controlPanel.style.height = Math.floor(window.innerHeight * SNAP_HALF) + 'px';
+        }
     }
 
     tabButtons.forEach(button => {
@@ -269,10 +350,12 @@ function setupEventListeners() {
                 controlPanel.classList.remove('show-config');
             }
 
-            // Auto-expandir si el panel estaba colapsado al presionar una pestaña
-            if (controlPanel && controlPanel.classList.contains('state-collapsed')) {
-                controlPanel.classList.remove('state-collapsed');
-                controlPanel.classList.add('state-half');
+            // Auto-expandir si el panel está casi colapsado al presionar una pestaña
+            const currentH = controlPanel.offsetHeight;
+            if (controlPanel && currentH < 80) {
+                const half = Math.floor(window.innerHeight * 0.45);
+                controlPanel.style.transition = 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                controlPanel.style.height = half + 'px';
             }
 
             // Forzar redibujado de Cytoscape
@@ -290,6 +373,14 @@ function setupEventListeners() {
         if (cy) {
             cy.resize();
             cy.fit();
+        }
+        // Recalibrar altura en móvil tras rotar pantalla
+        if (window.innerWidth <= 768 && controlPanel) {
+            const currentH = controlPanel.offsetHeight;
+            const maxH = Math.floor(window.innerHeight * 0.82);
+            if (currentH > maxH) {
+                controlPanel.style.height = Math.floor(window.innerHeight * 0.45) + 'px';
+            }
         }
     });
 }
