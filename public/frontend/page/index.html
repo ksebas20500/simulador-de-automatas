@@ -4,22 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador de Autómatas Finitos | IEEE Format Ready</title>
+    <link rel="stylesheet" href="https://www.nerdfonts.com/assets/css/webfont.css">
     <link rel="stylesheet" href="../css/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <!-- Cytoscape.js for graph visualization -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
 </head>
 <body>
-    <header class="main-header">
-        <h1>Simulador de Autómatas Finitos Interactivos</h1>
-        <p class="subtitle">DFA / NFA Simulator with ε-Transitions</p>
-    </header>
-
-    <main class="app-container">
-        <!-- Sidebar: Control Panel -->
+    <div class="app-layout">
+        <!-- Sidebar: Control Panel (Full Height on Left) -->
         <aside class="control-panel">
             <section class="config-section">
-                <h2><span class="icon">⚙️</span> Configuración</h2>
+                <h2><span class="icon"><i class="nf nf-fa-cog"></i></span> Configuración</h2>
                 
                 <div class="input-group">
                     <label for="states-input">Estados (Q) - ej: q0,q1,q2</label>
@@ -53,20 +49,21 @@
                 </div>
 
                 <button id="apply-config" class="btn-primary full-width">Aplicar Configuración</button>
+                <button id="btn-clear-all" class="btn-danger full-width" style="margin-top: 0.75rem;">Limpiar Todo</button>
             </section>
 
             <section class="simulation-section">
-                <h2><span class="icon">🚀</span> Simulación</h2>
+                <h2><span class="icon"><i class="nf nf-fa-rocket"></i></span> Simulación</h2>
                 <div class="input-group">
                     <label for="input-string">Cadena a evaluar</label>
                     <input type="text" id="input-string" placeholder="ej: 0101">
                 </div>
                 
                 <div class="controls">
-                    <button id="btn-play" class="btn-control">▶ Play</button>
-                    <button id="btn-pause" class="btn-control">⏸ Pausa</button>
-                    <button id="btn-next" class="btn-control">⏭ Paso</button>
-                    <button id="btn-reset" class="btn-control">🔄 Reset</button>
+                    <button id="btn-play" class="btn-control"><i class="nf nf-fa-play"></i> Play</button>
+                    <button id="btn-pause" class="btn-control"><i class="nf nf-fa-pause"></i> Pausa</button>
+                    <button id="btn-next" class="btn-control"><i class="nf nf-fa-forward"></i> Paso</button>
+                    <button id="btn-reset" class="btn-control"><i class="nf nf-fa-refresh"></i> Reset</button>
                 </div>
 
                 <div id="status-display" class="status-box">
@@ -75,20 +72,48 @@
             </section>
         </aside>
 
-        <!-- Main Content: Canvas -->
-        <section class="canvas-area">
-            <div id="cy"></div>
-            <div class="legend">
-                <span class="legend-item"><i class="dot initial"></i> Inicial</span>
-                <span class="legend-item"><i class="dot final"></i> Final</span>
-                <span class="legend-item"><i class="dot active"></i> Activo</span>
-            </div>
-        </section>
-    </main>
+        <!-- Right Side: Main Content Area -->
+        <div class="main-content">
+            <header class="main-header">
+                <h1>Simulador de Autómatas Finitos Interactivos</h1>
+                <p class="subtitle">DFA / NFA Simulator with ε-Transitions</p>
+            </header>
 
-    <footer class="main-footer">
-        <p>&copy; 2026 Simulador TC - Prototipo para Artículo IEEE</p>
-    </footer>
+            <!-- Main Content: Canvas -->
+            <section class="canvas-area">
+                <div id="cy"></div>
+                <button id="btn-fit" class="btn-floating" title="Centrar Autómata">
+                    <i class="nf nf-fa-crosshairs"></i>
+                </button>
+                <div class="legend">
+                    <span class="legend-item"><i class="dot initial"></i> Inicial</span>
+                    <span class="legend-item"><i class="dot final"></i> Final</span>
+                    <span class="legend-item"><i class="dot active"></i> Activo</span>
+                </div>
+            </section>
+
+            <footer class="main-footer">
+                <p>&copy; 2026 Simulador TC - Prototipo para Artículo IEEE</p>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación para Limpiar Todo -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title-icon"><i class="nf nf-fa-exclamation_triangle"></i></span>
+                <h3>¿Limpiar todo el autómata?</h3>
+            </div>
+            <div class="modal-body">
+                Esta acción eliminará de forma permanente todos los estados, transiciones, alfabeto y cadena actual. ¿Estás seguro de que deseas continuar desde cero?
+            </div>
+            <div class="modal-footer">
+                <button id="modal-btn-cancel" class="btn-secondary">Cancelar</button>
+                <button id="modal-btn-confirm" class="btn-danger-confirm">Confirmar</button>
+            </div>
+        </div>
+    </div>
 
     <script src="../js/script.js"></script>
 </body>

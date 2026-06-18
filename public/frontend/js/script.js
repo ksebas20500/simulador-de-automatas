@@ -3,6 +3,11 @@
  * Gestiona el canvas interactivo y la comunicación con el backend.
  */
 
+// Configuración dinámica del endpoint del backend (local vs. producción)
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://127.0.0.1:5005'
+    : 'https://simulador-de-automatas-backend.onrender.com'; // Render backend URL default (user can change this)
+
 let cy = null;
 let transitions = [];
 let simulationHistory = [];
@@ -38,7 +43,10 @@ function initCytoscape() {
                     'color': '#fff',
                     'text-valign': 'center',
                     'text-halign': 'center',
-                    'width': '50px',
+                    'width': function(node) {
+                        const label = node.data('id') || '';
+                        return Math.max(50, label.length * 9 + 24);
+                    },
                     'height': '50px',
                     'border-width': 2,
                     'border-color': '#4f46e5'
@@ -68,6 +76,22 @@ function initCytoscape() {
                 }
             },
             {
+                selector: 'node.active-accepted',
+                style: {
+                    'background-color': '#10b981',
+                    'border-color': '#10b981',
+                    'scale': 1.25
+                }
+            },
+            {
+                selector: 'node.active-rejected',
+                style: {
+                    'background-color': '#ef4444',
+                    'border-color': '#ef4444',
+                    'scale': 1.25
+                }
+            },
+            {
                 selector: 'edge',
                 style: {
                     'width': 2,
@@ -79,6 +103,18 @@ function initCytoscape() {
                     'color': '#94a3b8',
                     'font-size': '14px',
                     'text-margin-y': -10
+                }
+            },
+            {
+                selector: 'edge.active-edge',
+                style: {
+                    'width': 4,
+                    'line-color': '#3b82f6',
+                    'target-arrow-color': '#3b82f6',
+                    'color': '#3b82f6',
+                    'font-weight': 'bold',
+                    'transition-property': 'line-color, width',
+                    'transition-duration': '0.2s'
                 }
             }
         ],
@@ -110,6 +146,86 @@ function setupEventListeners() {
     document.getElementById('btn-pause').addEventListener('click', pauseSimulation);
     document.getElementById('btn-next').addEventListener('click', nextStep);
     document.getElementById('btn-reset').addEventListener('click', resetSimulation);
+    document.getElementById('btn-fit').addEventListener('click', () => {
+        if (cy) {
+            cy.fit();
+            cy.center();
+        }
+    });
+
+    // Validación en tiempo real del input de cadena
+    document.getElementById('input-string').addEventListener('input', (e) => {
+        const value = e.target.value;
+        if (value === '') {
+            resetSimulation();
+            return;
+        }
+        const validation = validateInputString(value);
+        const status = document.getElementById('status-display');
+        if (!validation.isValid) {
+            status.innerHTML = `<i class="nf nf-fa-exclamation_triangle" style="color:var(--accent-red)"></i> Alfabeto no válido o símbolo no válido`;
+            status.className = 'status-box rejected';
+        } else {
+            if (status.classList.contains('rejected') && (status.innerHTML.includes('válido') || status.innerHTML.includes('definido'))) {
+                status.innerHTML = '<i class="nf nf-fa-ellipsis_h"></i> Esperando cadena...';
+                status.className = 'status-box';
+            }
+        }
+    });
+
+    // Control del modal de confirmación para Limpiar Todo
+    const confirmModal = document.getElementById('confirm-modal');
+    const btnClearAll = document.getElementById('btn-clear-all');
+    const modalBtnConfirm = document.getElementById('modal-btn-confirm');
+    const modalBtnCancel = document.getElementById('modal-btn-cancel');
+
+    if (btnClearAll) {
+        btnClearAll.addEventListener('click', () => {
+            confirmModal.classList.remove('hidden');
+        });
+    }
+
+    const closeModal = () => {
+        confirmModal.classList.add('hidden');
+    };
+
+    if (modalBtnCancel) {
+        modalBtnCancel.addEventListener('click', closeModal);
+    }
+    if (confirmModal) {
+        confirmModal.addEventListener('click', (e) => {
+            if (e.target === confirmModal) {
+                closeModal();
+            }
+        });
+    }
+
+    if (modalBtnConfirm) {
+        modalBtnConfirm.addEventListener('click', () => {
+            // Limpiar inputs
+            document.getElementById('states-input').value = '';
+            document.getElementById('alphabet-input').value = '';
+            document.getElementById('initial-state-input').value = '';
+            document.getElementById('final-states-input').value = '';
+            document.getElementById('trans-from').value = '';
+            document.getElementById('trans-symbol').value = '';
+            document.getElementById('trans-to').value = '';
+            
+            // Limpiar transiciones internas
+            transitions = [];
+            renderTransitionsList();
+            
+            // Resetear simulación
+            resetSimulation();
+            
+            // Limpiar cytoscape canvas
+            if (cy) {
+                cy.elements().remove();
+            }
+            
+            closeModal();
+        });
+    }
 }
 
 function renderTransitionsList() {
@@ -173,6 +289,18 @@ async function startSimulation() {
     if (currentStepIndex === -1) {
         // Nueva simulación
         const inputString = document.getElementById('input-string').value;
+
+        // Validar si los caracteres de la cadena pertenecen al alfabeto
+        const validation = validateInputString(inputString);
+        if (!validation.isValid) {
+            const status = document.getElementById('status-display');
+            status.innerHTML = `<i class="nf nf-fa-exclamation_triangle" style="color:var(--accent-red)"></i> Símbolo del alfabeto no '${validation.invalidChar}' no está definido`;
+            status.className = 'status-box rejected';
+            isPlaying = false;
+            clearInterval(playInterval);
+            return;
+        }
+
         const config = {
             states: document.getElementById('states-input').value.split(',').map(s => s.trim()),
             alphabet: document.getElementById('alphabet-input').value.split(',').map(s => s.trim()),
@@ -183,7 +311,7 @@ async function startSimulation() {
         };
 
         try {
-            const response = await fetch('http://127.0.0.1:5005/simulate', {
+            const response = await fetch(`${BACKEND_URL}/simulate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(config)
@@ -232,48 +360,160 @@ function resetSimulation() {
     currentStepIndex = -1;
     simulationHistory = [];
     cy.nodes().removeClass('active');
+    cy.nodes().removeClass('active-accepted');
+    cy.nodes().removeClass('active-rejected');
+    cy.edges().removeClass('active-edge');
+    
+    // Limpiar input de la cadena
+    document.getElementById('input-string').value = '';
+    
     const status = document.getElementById('status-display');
-    status.innerText = 'Esperando cadena...';
+    status.innerHTML = '<i class="nf nf-fa-ellipsis_h"></i> Esperando cadena...';
     status.className = 'status-box';
 }
 
 function displayStep() {
     const step = simulationHistory[currentStepIndex];
     const status = document.getElementById('status-display');
+    const inputString = document.getElementById('input-string').value;
     
     // Actualizar visualización en el canvas
     cy.nodes().removeClass('active');
+    cy.nodes().removeClass('active-accepted');
+    cy.nodes().removeClass('active-rejected');
+    cy.edges().removeClass('active-edge');
+
+    const isLastStep = currentStepIndex === simulationHistory.length - 1;
+
     step.active_states.forEach(stateId => {
-        cy.$id(stateId).addClass('active');
+        const node = cy.$id(stateId);
+        node.addClass('active');
+        if (isLastStep) {
+            if (step.accepted) {
+                node.addClass('active-accepted');
+            } else {
+                node.addClass('active-rejected');
+            }
+        }
     });
+
+    // Iluminar transiciones activas
+    if (currentStepIndex > 0) {
+        const prevStep = simulationHistory[currentStepIndex - 1];
+        const prevStates = prevStep.active_states;
+        const currentSymbol = step.symbol;
+
+        cy.edges().forEach(edge => {
+            const src = edge.data('source');
+            const tgt = edge.data('target');
+            const sym = edge.data('symbol');
+
+            const isSymbolTransition = prevStates.includes(src) && sym === currentSymbol && step.active_states.includes(tgt);
+            const isEpsilonTransition = sym === 'ε' && step.active_states.includes(tgt) && (prevStates.includes(src) || step.active_states.includes(src));
+
+            if (isSymbolTransition || isEpsilonTransition) {
+                edge.addClass('active-edge');
+            }
+        });
+    }
 
     // Actualizar panel de estado
     if (step.error) {
-        status.innerText = `Error: ${step.error}`;
+        status.innerHTML = `<i class="nf nf-fa-exclamation_triangle" style="color:var(--accent-red)"></i> Error: ${step.error}`;
         status.className = 'status-box rejected';
         pauseSimulation();
         return;
     }
 
-    let msg = `Paso ${currentStepIndex}: `;
+    let description = "";
     if (step.symbol === null) {
-        msg += "Estado inicial (Clausura-ε)";
+        description = "Clausura inicial-ε";
     } else {
-        msg += `Leyendo '${step.symbol}'`;
+        description = `Leyendo '${step.symbol}'`;
+    }
+
+    let msg = `<div style="font-weight:600; margin-bottom:0.3rem;">Paso ${currentStepIndex}: ${description}</div>`;
+
+    if (inputString) {
+        let stringHtml = '<div class="string-visualization">';
+        const tokens = tokenizeInputString(inputString);
+        for (let i = 0; i < tokens.length; i++) {
+            const isCurrentToken = (i === currentStepIndex - 1 && step.symbol !== null);
+            if (isCurrentToken) {
+                stringHtml += `<span class="char active">${tokens[i]}</span>`;
+            } else {
+                stringHtml += `<span class="char">${tokens[i]}</span>`;
+            }
+        }
+        stringHtml += '</div>';
+        msg += stringHtml;
     }
     
-    const isLastStep = currentStepIndex === simulationHistory.length - 1;
     if (isLastStep) {
         if (step.accepted) {
-            msg += "\n✅ CADENA ACEPTADA";
+            msg += `<div style="margin-top:0.6rem; color:var(--accent-green); font-weight:bold; display:flex; align-items:center; gap:0.4rem;">
+                <i class="nf nf-fa-check_circle"></i> CADENA ACEPTADA
+            </div>`;
             status.className = 'status-box accepted';
         } else {
-            msg += "\n❌ CADENA RECHAZADA";
+            msg += `<div style="margin-top:0.6rem; color:var(--accent-red); font-weight:bold; display:flex; align-items:center; gap:0.4rem;">
+                <i class="nf nf-fa-times_circle"></i> CADENA RECHAZADA
+            </div>`;
             status.className = 'status-box rejected';
         }
     } else {
         status.className = 'status-box';
     }
     
-    status.innerText = msg;
+    status.innerHTML = msg;
+}
+
+// Funciones de validación de alfabeto
+function getAlphabet() {
+    const input = document.getElementById('alphabet-input').value.trim();
+    if (!input) return [];
+    return input.split(',').map(s => s.trim()).filter(s => s.length > 0);
+}
+
+function tokenizeInputString(inputStr) {
+    const alphabet = getAlphabet();
+    const sortedAlphabet = [...alphabet].sort((a, b) => b.length - a.length);
+    const tokens = [];
+    let i = 0;
+    while (i < inputStr.length) {
+        let matched = false;
+        for (let sym of sortedAlphabet) {
+            if (sym && inputStr.startsWith(sym, i)) {
+                tokens.push(sym);
+                i += sym.length;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            tokens.push(inputStr[i]);
+            i++;
+        }
+    }
+    return tokens;
+}
+
+function validateInputString(inputStr) {
+    const alphabet = getAlphabet();
+    const sortedAlphabet = [...alphabet].sort((a, b) => b.length - a.length);
+    let i = 0;
+    while (i < inputStr.length) {
+        let matched = false;
+        for (let sym of sortedAlphabet) {
+            if (sym && inputStr.startsWith(sym, i)) {
+                i += sym.length;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            return { isValid: false, invalidChar: inputStr[i] };
+        }
+    }
+    return { isValid: true };
 }

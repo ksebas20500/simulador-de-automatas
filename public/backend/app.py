@@ -55,15 +55,28 @@ class FiniteAutomaton:
         current_active = self.get_epsilon_closure({self.q0})
         history = [{"active_states": list(current_active), "symbol": None, "accepted": any(s in self.F for s in current_active)}]
         
-        for char in input_string:
-            if char not in self.Sigma:
-                # Símbolo no pertenece al alfabeto
-                return history + [{"error": f"Símbolo '{char}' no pertenece al alfabeto"}]
+        # Ordenamos Sigma de mayor a menor longitud para coincidencia codiciosa (greedy matching)
+        sorted_sigma = sorted(list(self.Sigma), key=len, reverse=True)
+        tokens = []
+        i = 0
+        while i < len(input_string):
+            matched = False
+            for sym in sorted_sigma:
+                if sym and input_string.startswith(sym, i):
+                    tokens.append(sym)
+                    i += len(sym)
+                    matched = True
+                    break
+            if not matched:
+                # El carácter actual no inicia ningún símbolo del alfabeto
+                invalid_char = input_string[i]
+                return history + [{"error": f"Símbolo '{invalid_char}' no pertenece al alfabeto"}]
             
-            current_active = self.step(current_active, char)
+        for token in tokens:
+            current_active = self.step(current_active, token)
             history.append({
                 "active_states": list(current_active),
-                "symbol": char,
+                "symbol": token,
                 "accepted": any(s in self.F for s in current_active)
             })
             
