@@ -234,7 +234,7 @@ function setupEventListeners() {
 
     // --- Sistema de arrastre libre (drag) para el Bottom Sheet ---
     if (handle && controlPanel) {
-        const HANDLE_HEIGHT = 44;       // altura mínima visible (solo el tirador)
+        const HANDLE_HEIGHT = 60;       // altura mínima visible (handle + borde visible)
         const MAX_RATIO = 0.82;         // máximo 82% de la pantalla
         const SNAP_HALF = 0.45;         // zona de snap al 45%
         const SNAP_EXPANDED = 0.70;     // zona de snap al expandido
