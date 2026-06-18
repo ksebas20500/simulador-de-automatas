@@ -479,24 +479,37 @@ input[type="text"]:focus {
         display: none !important;
     }
 
+    /* Layout: panel al FONDO (column-reverse = aside aparece abajo, main-content arriba) */
     .app-layout {
         display: flex;
-        flex-direction: column;  /* header arriba, canvas en medio, panel abajo */
+        flex-direction: column-reverse;
         height: 100vh;
         height: -webkit-fill-available;
         width: 100vw;
         overflow: hidden;
     }
 
-    /* El header es sticky dentro del main-content: nunca se mueve */
+    /* Header FIJO en la parte superior de la pantalla: nunca se mueve */
     .main-header {
-        flex-shrink: 0;          /* no se encoge */
-        position: sticky;
+        position: fixed;
         top: 0;
-        z-index: 50;
+        left: 0;
+        right: 0;
+        z-index: 200;
+        padding: 0.5rem 1rem;
         background: linear-gradient(90deg, #1e293b, #0f172a);
+        border-bottom: 1px solid var(--border-color);
     }
 
+    .main-header h1 {
+        font-size: 1.1rem;
+    }
+
+    .subtitle {
+        font-size: 0.7rem;
+    }
+
+    /* main-content: ocupa todo el espacio sobrante arriba del panel */
     .main-content {
         flex: 1;
         width: 100%;
@@ -504,6 +517,8 @@ input[type="text"]:focus {
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        /* Reservar espacio para el header fijo (~64px) */
+        padding-top: 64px;
     }
 
     .canvas-area {
@@ -514,10 +529,10 @@ input[type="text"]:focus {
         overflow: hidden;
     }
 
-    /* El panel de control (bottom sheet) */
+    /* El panel de control (bottom sheet) — siempre al fondo */
     .control-panel {
         width: 100%;
-        flex-shrink: 0;          /* no se encoge por el flex padre */
+        flex-shrink: 0;
         border-right: none;
         border-top: 1px solid var(--border-color);
         background-color: var(--bg-card);
@@ -541,7 +556,7 @@ input[type="text"]:focus {
         display: flex;
         justify-content: center;
         align-items: center;
-        min-height: 44px;           /* zona táctil mínima recomendada iOS/Android */
+        min-height: 44px;
         padding: 0.5rem 0;
         cursor: grab;
         cursor: -webkit-grab;
@@ -549,7 +564,7 @@ input[type="text"]:focus {
         flex-shrink: 0;
         user-select: none;
         -webkit-user-select: none;
-        touch-action: none;         /* evita scroll del navegador al arrastrar */
+        touch-action: none;
     }
 
     .bottom-sheet-handle:active {
@@ -609,19 +624,6 @@ input[type="text"]:focus {
 
     .control-panel.show-sim .config-section {
         display: none !important;
-    }
-
-    /* Compactar Header en móvil */
-    .main-header {
-        padding: 0.6rem 1rem;
-    }
-
-    .main-header h1 {
-        font-size: 1.25rem;
-    }
-
-    .subtitle {
-        font-size: 0.75rem;
     }
 
     /* Leyenda compacta en móviles */
