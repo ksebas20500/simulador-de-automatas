@@ -6,7 +6,7 @@
 // Configuración dinámica del endpoint del backend (local vs. producción)
 const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://127.0.0.1:5005'
-    : 'https://simulador-de-automatas-backend.onrender.com'; // Render backend URL default (user can change this)
+    : 'https://simulador-de-automatas.onrender.com'; // Render backend URL
 
 let cy = null;
 let transitions = [];
